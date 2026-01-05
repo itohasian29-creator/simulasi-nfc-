@@ -16,14 +16,17 @@
     
     <style>
         body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
-        #debug-console { display: none; background: #333; color: #fff; padding: 10px; font-family: monospace; font-size: 10px; margin-top: 20px; border-radius: 5px; }
+        #debug-console { display: none; background: #333; color: #fff; padding: 10px; font-family: monospace; font-size: 10px; margin-top: 20px; border-radius: 5px; text-align: left; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans antialiased">
 
     <div id="global-error" style="display:none; padding:20px; text-align:center; color:red;">
         <h3 style="font-weight:bold;">Terjadi Kesalahan</h3>
-        <p id="error-msg">Aplikasi gagal dimuat.</p>
+        <p>Ada data lama yang tidak cocok. Silakan tekan tombol di bawah:</p>
+        <button onclick="localStorage.clear(); location.reload();" style="background:red; color:white; border:none; padding:10px 20px; border-radius:5px; margin-top:10px; font-weight:bold;">
+            HAPUS DATA & RESET APLIKASI
+        </button>
         <div id="debug-console"></div>
     </div>
 
@@ -31,27 +34,24 @@
         <div class="flex h-screen items-center justify-center flex-col gap-3">
             <div class="w-10 h-10 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
             <p class="text-green-800 font-semibold animate-pulse">Memuat Aplikasi...</p>
-            <p class="text-xs text-slate-400">Pastikan koneksi internet aktif</p>
         </div>
     </div>
 
     <script>
-        // Global Error Handler untuk Mobile
+        // Global Error Handler
         window.onerror = function(message, source, lineno, colno, error) {
             document.getElementById('global-error').style.display = 'block';
             document.getElementById('root').style.display = 'none';
             const consoleBox = document.getElementById('debug-console');
             consoleBox.style.display = 'block';
-            consoleBox.innerHTML += `ERROR: ${message} at line ${lineno}<br/>`;
+            consoleBox.innerHTML += `ERROR: ${message}<br/>Line: ${lineno}`;
         };
     </script>
 
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        // --- DATA MASTER & ICONS (SAMA SEPERTI SEBELUMNYA) ---
-        // (Saya ringkas bagian icon agar kode muat, fungsinya tetap sama)
-        
+        // --- DATA MASTER & ICONS ---
         const DATA_KEMANDORAN = {
             "GENK/XX111-A": ["Andi Saputra", "Budi Hartono", "Rian Pratama", "Fajar Nugroho", "Dimas Setiawan"],
             "GENK/XX111-B": ["Eko Santoso", "Rudi Firmansyah", "Agung Purnomo", "Taufik Hidayat", "Bayu Saputra"]
@@ -63,18 +63,11 @@
                 {d ? <path d={d} /> : children}
             </svg>
         );
-        // Icons Simplified for readability
         const Wifi = (p) => <IconBase {...p}><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></IconBase>;
         const Leaf = (p) => <IconBase {...p}><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></IconBase>;
-        const Save = (p) => <IconBase {...p}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></IconBase>;
         const Trash2 = (p) => <IconBase {...p}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></IconBase>;
-        const Smartphone = (p) => <IconBase {...p}><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></IconBase>;
-        const AlertCircle = (p) => <IconBase {...p}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></IconBase>;
-        const XIcon = (p) => <IconBase {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></IconBase>;
-        const Calculator = (p) => <IconBase {...p}><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></IconBase>;
-        const Users = (p) => <IconBase {...p}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></IconBase>;
-        const MapPin = (p) => <IconBase {...p}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></IconBase>;
         const ListIcon = (p) => <IconBase {...p}><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></IconBase>;
+        const XIcon = (p) => <IconBase {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></IconBase>;
 
         // --- MAIN APP ---
         const App = () => {
@@ -95,14 +88,24 @@
             }, [formData.bucketCount, formData.rbe]);
 
             useEffect(() => {
-                // Check Secure Context (HTTPS)
                 if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
                     setIsSecure(false);
-                    setNfcStatus({ supported: false, message: 'Wajib HTTPS untuk NFC' });
+                    setNfcStatus({ supported: false, message: 'Wajib HTTPS' });
                 }
 
-                const savedLogs = localStorage.getItem('brondolanLogs');
-                if (savedLogs) setLogs(JSON.parse(savedLogs));
+                try {
+                    const savedLogs = localStorage.getItem('brondolanLogs');
+                    if (savedLogs) {
+                        const parsed = JSON.parse(savedLogs);
+                        // Validasi sederhana agar tidak error jika data lama rusak
+                        if (Array.isArray(parsed)) {
+                            setLogs(parsed);
+                        }
+                    }
+                } catch (e) {
+                    console.log("Resetting corrupted logs");
+                    localStorage.removeItem('brondolanLogs');
+                }
 
                 if (!('NDEFReader' in window)) {
                     setNfcStatus({ supported: false, message: 'Browser tidak mendukung NFC' });
@@ -110,31 +113,18 @@
             }, []);
 
             const startNfcScan = async () => {
-                // Simulasi jika tidak support
                 if (!nfcStatus.supported) {
                     simulateScan();
                     return;
                 }
-
                 try {
                     const ndef = new NDEFReader();
                     await ndef.scan();
                     setIsScanning(true);
-                    
-                    ndef.onreading = (event) => {
-                        handleTagDetected(event.serialNumber);
-                    };
-                    
-                    ndef.onreadingerror = () => {
-                        alert("Gagal membaca tag. Coba lepas casing HP.");
-                        setIsScanning(false);
-                    };
+                    ndef.onreading = (event) => handleTagDetected(event.serialNumber);
+                    ndef.onreadingerror = () => { alert("Gagal baca tag."); setIsScanning(false); };
                 } catch (error) {
-                    console.error(error);
-                    // Fallback ke simulasi jika akses ditolak tapi user maksa ingin coba
-                    if(confirm("NFC Error: " + error.message + "\n\nGunakan mode simulasi manual?")) {
-                         simulateScan();
-                    }
+                    if(confirm("NFC Error/Tidak Aktif. Gunakan simulasi?")) simulateScan();
                     setIsScanning(false);
                 }
             };
@@ -142,8 +132,7 @@
             const simulateScan = () => {
                 setIsScanning(true);
                 setTimeout(() => {
-                    const mockSerial = "SIM-" + Math.floor(1000 + Math.random() * 9000);
-                    handleTagDetected(mockSerial);
+                    handleTagDetected("SIM-" + Math.floor(1000 + Math.random() * 9000));
                 }, 1000);
             };
 
@@ -152,9 +141,9 @@
                 setCurrentTag(serialNumber);
                 const lastLog = logs[0];
                 setFormData({ 
-                    gank: lastLog ? lastLog.gank : '',
+                    gank: lastLog?.gank || '',
                     worker: '', bucketCount: '', 
-                    rbe: lastLog ? lastLog.rbe : '', 
+                    rbe: lastLog?.rbe || '', 
                     location: '', notes: '' 
                 });
                 if (navigator.vibrate) navigator.vibrate(200);
@@ -184,6 +173,13 @@
                 setCurrentTag(null);
             };
 
+            // Helper untuk mengambil nama Gank dengan aman
+            const getGankName = (gankStr) => {
+                if (!gankStr) return '-';
+                const parts = gankStr.split('/');
+                return parts.length > 1 ? parts[1] : gankStr;
+            };
+
             return (
                 <div className="min-h-screen bg-slate-50 pb-20">
                     <header className="bg-green-700 text-white p-4 shadow-lg sticky top-0 z-10">
@@ -192,28 +188,13 @@
                                 <Leaf className="h-6 w-6 text-yellow-300" />
                                 <h1 className="text-xl font-bold">SawitTrack</h1>
                             </div>
-                            <div className="text-xs bg-green-800 px-2 py-1 rounded-full">v2.2 Mobile</div>
+                            <div className="text-xs bg-green-800 px-2 py-1 rounded-full">v2.3 Fix</div>
                         </div>
                     </header>
 
                     <main className="max-w-md mx-auto p-4">
+                        {!isSecure && <div className="mb-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-3 rounded text-sm"><b>Peringatan:</b> Bukan HTTPS. NFC mati.</div>}
                         
-                        {/* Peringatan HTTPS / Browser Support */}
-                        {!isSecure && (
-                            <div className="mb-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-3 rounded text-sm">
-                                <b>Peringatan Keamanan!</b><br/>
-                                Anda tidak menggunakan HTTPS. NFC tidak akan berfungsi. Gunakan mode simulasi.
-                            </div>
-                        )}
-                        
-                        {!nfcStatus.supported && isSecure && (
-                             <div className="mb-4 bg-orange-100 border-l-4 border-orange-500 text-orange-700 p-3 rounded text-sm">
-                                <b>Mode Simulasi</b><br/>
-                                {nfcStatus.message}. Input akan menggunakan ID simulasi.
-                            </div>
-                        )}
-
-                        {/* Stats */}
                         <div className="grid grid-cols-2 gap-3 mb-6">
                             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
                                 <p className="text-xs text-slate-500 font-semibold">TOTAL EMBER</p>
@@ -225,7 +206,6 @@
                             </div>
                         </div>
 
-                        {/* SCAN BUTTON */}
                         <div className="flex justify-center mb-8">
                             <button onClick={startNfcScan} disabled={isScanning}
                                 className={`w-48 h-48 rounded-full flex flex-col items-center justify-center shadow-xl transition-all ${isScanning ? 'bg-orange-100 text-orange-600 animate-pulse border-4 border-orange-300' : 'bg-gradient-to-br from-green-500 to-green-700 text-white active:scale-95 border-4 border-green-300'}`}>
@@ -234,25 +214,29 @@
                             </button>
                         </div>
 
-                        {/* History List */}
                         <div className="space-y-3">
-                            <h2 className="font-bold text-lg flex items-center gap-2"><ListIcon className="h-5 w-5"/> Riwayat</h2>
+                            <div className="flex justify-between items-center">
+                                <h2 className="font-bold text-lg flex items-center gap-2"><ListIcon className="h-5 w-5"/> Riwayat</h2>
+                                <button onClick={() => {if(confirm("Reset semua data?")) {localStorage.clear(); location.reload();}}} className="text-xs text-red-500 underline">Reset Data</button>
+                            </div>
+                            
                             {logs.length === 0 ? <p className="text-center text-slate-400 py-4">Belum ada data.</p> : 
                                 logs.map(log => (
                                     <div key={log.id} className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-green-500 flex justify-between">
                                         <div>
-                                            <div className="text-xs font-bold text-green-800 mb-1">{log.gank.split('/')[1] || log.gank}</div>
+                                            <div className="text-xs font-bold text-green-800 mb-1">
+                                                {getGankName(log.gank)}
+                                            </div>
                                             <div className="font-bold">{log.totalWeight} Kg <span className="font-normal text-xs text-slate-500">({log.bucketCount} ember)</span></div>
-                                            <div className="text-sm">{log.worker}</div>
+                                            <div className="text-sm">{log.worker || '-'}</div>
                                         </div>
-                                        <button onClick={() => {if(confirm('Hapus?')){setLogs(logs.filter(l=>l.id!==log.id));localStorage.setItem('brondolanLogs',JSON.stringify(logs.filter(l=>l.id!==log.id)))}}} className="text-red-400"><Trash2/></button>
+                                        <button onClick={() => {if(confirm('Hapus item ini?')){setLogs(logs.filter(l=>l.id!==log.id));localStorage.setItem('brondolanLogs',JSON.stringify(logs.filter(l=>l.id!==log.id)))}}} className="text-red-400"><Trash2/></button>
                                     </div>
                                 ))
                             }
                         </div>
                     </main>
 
-                    {/* MODAL INPUT (Sama seperti sebelumnya, disederhanakan) */}
                     {currentTag && (
                         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
                             <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">

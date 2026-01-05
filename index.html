@@ -43,9 +43,26 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useMemo } = React;
 
-        // --- ICONS (Inline SVG components pengganti Lucide-React) ---
+        // --- DATA MASTER ---
+        const DATA_KEMANDORAN = {
+            "GENK/XX111-A": [
+                "Andi Saputra", "Budi Hartono", "Rian Pratama", "Fajar Nugroho",
+                "Dimas Setiawan", "Yoga Prabowo", "Rizki Ramadhan", "Wahyu Hidayat",
+                "Ilham Maulana", "Arif Kurniawan"
+            ],
+            "GENK/XX111-B": [
+                "Eko Santoso", "Rudi Firmansyah", "Agung Purnomo", "Taufik Hidayat",
+                "Bayu Saputra", "Aldi Prasetyo", "Nanda Putra", "Reza Kurnia",
+                "Farhan Akbar", "M. Irfan"
+            ]
+        };
+
+        // Generate TPH List AA100 - AA150
+        const TPH_LIST = Array.from({length: 51}, (_, i) => "AA" + (100 + i));
+
+        // --- ICONS ---
         const IconBase = ({ children, className }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
                 {children}
@@ -60,6 +77,9 @@
         const Smartphone = (props) => <IconBase {...props}><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></IconBase>;
         const AlertCircle = (props) => <IconBase {...props}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></IconBase>;
         const XIcon = (props) => <IconBase {...props}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></IconBase>;
+        const Calculator = (props) => <IconBase {...props}><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></IconBase>;
+        const Users = (props) => <IconBase {...props}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></IconBase>;
+        const MapPin = (props) => <IconBase {...props}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></IconBase>;
 
         // --- MAIN APP COMPONENT ---
         const App = () => {
@@ -68,13 +88,22 @@
             const [logs, setLogs] = useState([]);
             const [currentTag, setCurrentTag] = useState(null);
             
-            // Form State
+            // Form State Baru
             const [formData, setFormData] = useState({
-                weight: '',
-                location: '', 
-                worker: '',   
+                gank: '',
+                worker: '',
+                bucketCount: '', // Jumlah Ember
+                rbe: '',         // Rata-rata Berat Ember
+                location: '',
                 notes: ''
             });
+
+            // Hitung Total Berat Otomatis
+            const totalWeight = useMemo(() => {
+                const count = parseFloat(formData.bucketCount) || 0;
+                const rbe = parseFloat(formData.rbe) || 0;
+                return (count * rbe).toFixed(2);
+            }, [formData.bucketCount, formData.rbe]);
 
             useEffect(() => {
                 const savedLogs = localStorage.getItem('brondolanLogs');
@@ -126,24 +155,35 @@
             const handleTagDetected = (serialNumber) => {
                 setIsScanning(false);
                 setCurrentTag(serialNumber);
-                // Get previous location/worker if available to speed up input
+                
+                // Ambil data terakhir untuk mempercepat input (Smart Defaults)
                 const lastLog = logs[0];
                 setFormData({ 
-                    weight: '', 
-                    location: lastLog ? lastLog.location : '', 
-                    worker: lastLog ? lastLog.worker : '', 
+                    gank: lastLog ? lastLog.gank : '',
+                    worker: '', // Worker direset agar user memilih ulang
+                    bucketCount: '',
+                    rbe: lastLog ? lastLog.rbe : '', // RBE biasanya sama dalam satu sesi
+                    location: '', // Reset lokasi agar user memilih TPH baru
                     notes: '' 
                 });
             };
 
             const handleInputChange = (e) => {
                 const { name, value } = e.target;
-                setFormData(prev => ({ ...prev, [name]: value }));
+                setFormData(prev => {
+                    const newData = { ...prev, [name]: value };
+                    
+                    // Jika Gank berubah, reset Worker
+                    if (name === 'gank') {
+                        newData.worker = '';
+                    }
+                    return newData;
+                });
             };
 
             const saveProductionData = () => {
-                if (!formData.weight || !formData.location) {
-                    alert("Mohon isi Berat dan Lokasi TPH/Blok.");
+                if (!formData.gank || !formData.worker || !formData.bucketCount || !formData.rbe || !formData.location) {
+                    alert("Mohon lengkapi semua data (Gank, Nama, Ember, RBE, TPH).");
                     return;
                 }
 
@@ -151,9 +191,12 @@
                     id: Date.now(),
                     tagId: currentTag,
                     timestamp: new Date().toLocaleString('id-ID'),
-                    weight: formData.weight,
-                    location: formData.location,
+                    gank: formData.gank,
                     worker: formData.worker,
+                    bucketCount: formData.bucketCount,
+                    rbe: formData.rbe,
+                    totalWeight: totalWeight, // Hasil perkalian disimpan
+                    location: formData.location,
                     notes: formData.notes
                 };
 
@@ -163,7 +206,6 @@
                 
                 setCurrentTag(null);
                 
-                // Optional: Vibrate on save success
                 if (navigator.vibrate) navigator.vibrate(200);
             };
 
@@ -190,7 +232,7 @@
                                 <h1 className="text-xl font-bold tracking-tight">SawitTrack NFC</h1>
                             </div>
                             <div className="text-xs bg-green-800 px-2 py-1 rounded-full">
-                                v1.0 Github
+                                v2.1 TPH
                             </div>
                         </div>
                     </header>
@@ -202,7 +244,7 @@
                                 <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
                                 <div>
                                     <p className="font-bold">Browser tidak support Web NFC</p>
-                                    <p>Menggunakan mode simulasi. Gunakan Chrome di Android untuk scan asli.</p>
+                                    <p>Menggunakan mode simulasi.</p>
                                 </div>
                             </div>
                         )}
@@ -210,16 +252,18 @@
                         {/* Dashboard Cards */}
                         <div className="grid grid-cols-2 gap-3 mb-6">
                             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                                <p className="text-xs text-slate-500 uppercase font-semibold">Total Input</p>
-                                <p className="text-2xl font-bold text-green-700">{logs.length}</p>
+                                <p className="text-xs text-slate-500 uppercase font-semibold">Total Ember</p>
+                                <p className="text-2xl font-bold text-green-700">
+                                    {logs.reduce((acc, curr) => acc + Number(curr.bucketCount || 0), 0)}
+                                </p>
                                 <p className="text-xs text-slate-400">Hari ini</p>
                             </div>
                             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
                                 <p className="text-xs text-slate-500 uppercase font-semibold">Total Berat</p>
                                 <p className="text-2xl font-bold text-green-700">
-                                    {logs.reduce((acc, curr) => acc + Number(curr.weight || 0), 0)} <span className="text-sm font-normal text-slate-500">kg</span>
+                                    {logs.reduce((acc, curr) => acc + Number(curr.totalWeight || 0), 0).toLocaleString('id-ID', {maximumFractionDigits: 0})} <span className="text-sm font-normal text-slate-500">kg</span>
                                 </p>
-                                <p className="text-xs text-slate-400">Akumulasi</p>
+                                <p className="text-xs text-slate-400">Estimasi</p>
                             </div>
                         </div>
 
@@ -273,15 +317,22 @@
                                         <div>
                                             <div className="flex items-center gap-2 mb-1">
                                                 <span className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded font-mono font-bold">
-                                                    {log.location}
+                                                    {log.gank.split('/')[1] || log.gank}
                                                 </span>
-                                                <span className="text-xs text-slate-400">{log.timestamp}</span>
+                                                <span className="text-xs text-slate-400">{log.timestamp.split(' ')[1]}</span>
                                             </div>
-                                            <div className="font-bold text-slate-800 text-lg">
-                                                {log.weight} kg <span className="text-sm font-normal text-slate-500">Brondolan</span>
+                                            <div className="font-bold text-slate-800 text-lg flex items-baseline gap-1">
+                                                {log.totalWeight} kg 
+                                                <span className="text-xs font-normal text-slate-500">
+                                                    ({log.bucketCount} ember x {log.rbe})
+                                                </span>
                                             </div>
-                                            <div className="text-sm text-slate-600">
-                                                Oleh: {log.worker} <span className="text-xs text-slate-400">({log.tagId})</span>
+                                            <div className="text-sm text-slate-600 font-medium">
+                                                {log.worker}
+                                            </div>
+                                            <div className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+                                                <MapPin className="h-3 w-3 text-red-500" /> 
+                                                <span className="font-bold">{log.location || 'Tanpa Lokasi'}</span>
                                             </div>
                                         </div>
                                         <button 
@@ -299,12 +350,12 @@
                     {/* Input Modal / Sheet */}
                     {currentTag && (
                         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
-                            <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl animate-slide-up">
-                                <div className="flex justify-between items-center mb-6">
+                            <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
+                                <div className="flex justify-between items-center mb-4">
                                     <div>
-                                        <h3 className="text-xl font-bold text-slate-800">Input Data Produksi</h3>
-                                        <p className="text-sm text-green-600 font-mono mt-1 flex items-center gap-1">
-                                            <Wifi className="h-3 w-3" /> ID Tag: {currentTag}
+                                        <h3 className="text-xl font-bold text-slate-800">Input Produksi</h3>
+                                        <p className="text-xs text-green-600 font-mono mt-0.5 flex items-center gap-1">
+                                            <Wifi className="h-3 w-3" /> ID: {currentTag}
                                         </p>
                                     </div>
                                     <button onClick={cancelScan} className="bg-slate-100 p-2 rounded-full hover:bg-slate-200">
@@ -313,62 +364,115 @@
                                 </div>
 
                                 <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">Berat Brondolan (Kg)</label>
-                                        <div className="relative">
-                                            <input
-                                                type="number"
-                                                name="weight"
-                                                value={formData.weight}
-                                                onChange={handleInputChange}
-                                                placeholder="0"
-                                                className="w-full p-3 pl-4 pr-12 text-lg border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
-                                                autoFocus
-                                            />
-                                            <span className="absolute right-4 top-3.5 text-slate-400 font-bold">KG</span>
+                                    
+                                    {/* SECTION 1: IDENTITAS */}
+                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-3">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Pilih Gank (Kemandoran)</label>
+                                            <div className="relative">
+                                                <select
+                                                    name="gank"
+                                                    value={formData.gank}
+                                                    onChange={handleInputChange}
+                                                    className="w-full p-3 bg-white border border-slate-300 rounded-lg appearance-none focus:ring-2 focus:ring-green-500 outline-none font-medium"
+                                                >
+                                                    <option value="">-- Pilih Gank --</option>
+                                                    {Object.keys(DATA_KEMANDORAN).map(key => (
+                                                        <option key={key} value={key}>{key}</option>
+                                                    ))}
+                                                </select>
+                                                <div className="absolute right-3 top-3.5 pointer-events-none text-slate-500">
+                                                    <Users className="h-5 w-5" />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nama Karyawan</label>
+                                            <div className="relative">
+                                                <select
+                                                    name="worker"
+                                                    value={formData.worker}
+                                                    onChange={handleInputChange}
+                                                    disabled={!formData.gank}
+                                                    className={`w-full p-3 bg-white border border-slate-300 rounded-lg appearance-none focus:ring-2 focus:ring-green-500 outline-none font-medium ${!formData.gank ? 'bg-slate-100 text-slate-400' : ''}`}
+                                                >
+                                                    <option value="">-- Pilih Nama --</option>
+                                                    {formData.gank && DATA_KEMANDORAN[formData.gank].map((name, idx) => (
+                                                        <option key={idx} value={name}>{name}</option>
+                                                    ))}
+                                                </select>
+                                                <div className="absolute right-3 top-3.5 pointer-events-none text-slate-500">
+                                                    <div className="border-l-4 border-transparent border-t-4 border-slate-500"></div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">Lokasi (TPH/Blok)</label>
-                                            <input
-                                                type="text"
+                                    {/* SECTION 2: KALKULATOR BERAT */}
+                                    <div className="bg-green-50 p-3 rounded-xl border border-green-200 space-y-3">
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="block text-xs font-bold text-green-700 uppercase mb-1">Jml Ember</label>
+                                                <input
+                                                    type="number"
+                                                    name="bucketCount"
+                                                    value={formData.bucketCount}
+                                                    onChange={handleInputChange}
+                                                    placeholder="0"
+                                                    className="w-full p-3 text-center text-lg font-bold text-green-800 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+                                                    inputMode="numeric"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-green-700 uppercase mb-1">RBE (Kg)</label>
+                                                <input
+                                                    type="number"
+                                                    name="rbe"
+                                                    value={formData.rbe}
+                                                    onChange={handleInputChange}
+                                                    placeholder="0"
+                                                    className="w-full p-3 text-center text-lg font-bold text-green-800 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+                                                    inputMode="decimal"
+                                                />
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-green-200 shadow-sm">
+                                            <div className="flex items-center gap-2 text-green-600">
+                                                <Calculator className="h-5 w-5" />
+                                                <span className="text-sm font-semibold">Total Berat</span>
+                                            </div>
+                                            <div className="text-2xl font-bold text-green-800">
+                                                {totalWeight} <span className="text-sm text-green-600 font-normal">Kg</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* SECTION 3: LOKASI & CATATAN */}
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Lokasi (TPH)</label>
+                                        <div className="relative">
+                                            <select
                                                 name="location"
                                                 value={formData.location}
                                                 onChange={handleInputChange}
-                                                placeholder="Cth: A12"
-                                                className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
-                                            />
+                                                className="w-full p-3 bg-white border border-slate-300 rounded-lg appearance-none focus:ring-2 focus:ring-green-500 outline-none font-medium"
+                                            >
+                                                <option value="">-- Pilih TPH --</option>
+                                                {TPH_LIST.map(tph => (
+                                                    <option key={tph} value={tph}>{tph}</option>
+                                                ))}
+                                            </select>
+                                            <div className="absolute right-3 top-3.5 pointer-events-none text-slate-500">
+                                                <MapPin className="h-5 w-5" />
+                                            </div>
                                         </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">Nama Pemuat</label>
-                                            <input
-                                                type="text"
-                                                name="worker"
-                                                value={formData.worker}
-                                                onChange={handleInputChange}
-                                                placeholder="Nama"
-                                                className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">Catatan (Opsional)</label>
-                                        <textarea
-                                            name="notes"
-                                            value={formData.notes}
-                                            onChange={handleInputChange}
-                                            rows="2"
-                                            placeholder="Kualitas buah, dsb..."
-                                            className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
-                                        ></textarea>
                                     </div>
 
                                     <button
                                         onClick={saveProductionData}
-                                        className="w-full bg-green-700 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-800 transition-colors flex items-center justify-center gap-2 mt-2 shadow-lg shadow-green-700/30 active:scale-95"
+                                        className="w-full bg-green-700 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-800 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-green-700/30 active:scale-95"
                                     >
                                         <Save className="h-5 w-5" />
                                         SIMPAN DATA
